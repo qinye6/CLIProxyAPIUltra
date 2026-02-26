@@ -33,13 +33,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-replace (
-	github.com/qinye6/CLIProxyAPIUltra/sdk/cliproxy => ./sdk/cliproxy
-	github.com/qinye6/CLIProxyAPIUltra/sdk/cliproxy/auth => ./sdk/cliproxy/auth
-	github.com/qinye6/CLIProxyAPIUltra/sdk/cliproxy/executor => ./sdk/cliproxy/executor
-	github.com/qinye6/CLIProxyAPIUltra/sdk/cliproxy/usage => ./sdk/cliproxy/usage
-)
-
 require (
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
