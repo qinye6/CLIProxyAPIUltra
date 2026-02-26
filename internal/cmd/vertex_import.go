@@ -9,11 +9,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/auth/vertex"
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/config"
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/util"
-	sdkAuth "github.com/router-for-me/CLIProxyAPI/v6/sdk/auth"
-	coreauth "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/auth"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/auth/vertex"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/config"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/util"
+	sdkAuth "github.com/qinye6/CLIProxyAPIUltra/sdk/auth"
+	coreauth "github.com/qinye6/CLIProxyAPIUltra/sdk/cliproxy/auth"
 	log "github.com/sirupsen/logrus"
 )
 

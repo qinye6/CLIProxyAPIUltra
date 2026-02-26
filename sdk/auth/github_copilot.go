@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/auth/copilot"
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/browser"
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/config"
-	coreauth "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/auth"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/auth/copilot"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/browser"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/config"
+	coreauth "github.com/qinye6/CLIProxyAPIUltra/sdk/cliproxy/auth"
 	log "github.com/sirupsen/logrus"
 )
 

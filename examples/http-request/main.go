@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	coreauth "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/auth"
-	clipexec "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/executor"
+	coreauth "github.com/qinye6/CLIProxyAPIUltra/sdk/cliproxy/auth"
+	clipexec "github.com/qinye6/CLIProxyAPIUltra/sdk/cliproxy/executor"
 	log "github.com/sirupsen/logrus"
 )
 

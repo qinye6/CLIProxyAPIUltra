@@ -1,4 +1,4 @@
-module github.com/router-for-me/CLIProxyAPI/v6
+module github.com/qinye6/CLIProxyAPIUltra
 
 go 1.26.0
 

@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/auth/claude"
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/browser"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/auth/claude"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/browser"
 	// legacy client removed
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/config"
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/misc"
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/util"
-	coreauth "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/auth"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/config"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/misc"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/util"
+	coreauth "github.com/qinye6/CLIProxyAPIUltra/sdk/cliproxy/auth"
 	log "github.com/sirupsen/logrus"
 )
 

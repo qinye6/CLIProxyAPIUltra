@@ -14,14 +14,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/interfaces"
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/logging"
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/thinking"
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/util"
-	coreauth "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/auth"
-	coreexecutor "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/executor"
-	"github.com/router-for-me/CLIProxyAPI/v6/sdk/config"
-	sdktranslator "github.com/router-for-me/CLIProxyAPI/v6/sdk/translator"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/interfaces"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/logging"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/thinking"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/util"
+	coreauth "github.com/qinye6/CLIProxyAPIUltra/sdk/cliproxy/auth"
+	coreexecutor "github.com/qinye6/CLIProxyAPIUltra/sdk/cliproxy/executor"
+	"github.com/qinye6/CLIProxyAPIUltra/sdk/config"
+	sdktranslator "github.com/qinye6/CLIProxyAPIUltra/sdk/translator"
 	"golang.org/x/net/context"
 )
 

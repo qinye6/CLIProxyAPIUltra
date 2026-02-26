@@ -3,9 +3,9 @@ package test
 import (
 	"testing"
 
-	_ "github.com/router-for-me/CLIProxyAPI/v6/internal/translator"
+	_ "github.com/qinye6/CLIProxyAPIUltra/internal/translator"
 
-	sdktranslator "github.com/router-for-me/CLIProxyAPI/v6/sdk/translator"
+	sdktranslator "github.com/qinye6/CLIProxyAPIUltra/sdk/translator"
 	"github.com/tidwall/gjson"
 )
 

@@ -13,12 +13,12 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/config"
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/thinking"
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/wsrelay"
-	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/auth"
-	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/executor"
-	sdktranslator "github.com/router-for-me/CLIProxyAPI/v6/sdk/translator"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/config"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/thinking"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/wsrelay"
+	cliproxyauth "github.com/qinye6/CLIProxyAPIUltra/sdk/cliproxy/auth"
+	cliproxyexecutor "github.com/qinye6/CLIProxyAPIUltra/sdk/cliproxy/executor"
+	sdktranslator "github.com/qinye6/CLIProxyAPIUltra/sdk/translator"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )

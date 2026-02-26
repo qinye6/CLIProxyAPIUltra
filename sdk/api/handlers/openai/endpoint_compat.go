@@ -1,6 +1,6 @@
 package openai
 
-import "github.com/router-for-me/CLIProxyAPI/v6/internal/registry"
+import "github.com/qinye6/CLIProxyAPIUltra/internal/registry"
 
 const (
 	openAIChatEndpoint      = "/chat/completions"

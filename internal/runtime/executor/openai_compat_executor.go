@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/config"
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/thinking"
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/util"
-	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/auth"
-	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/executor"
-	sdktranslator "github.com/router-for-me/CLIProxyAPI/v6/sdk/translator"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/config"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/thinking"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/util"
+	cliproxyauth "github.com/qinye6/CLIProxyAPIUltra/sdk/cliproxy/auth"
+	cliproxyexecutor "github.com/qinye6/CLIProxyAPIUltra/sdk/cliproxy/executor"
+	sdktranslator "github.com/qinye6/CLIProxyAPIUltra/sdk/translator"
 	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/sjson"
 )

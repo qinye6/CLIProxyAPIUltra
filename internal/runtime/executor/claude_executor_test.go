@@ -8,10 +8,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/config"
-	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/auth"
-	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v6/sdk/cliproxy/executor"
-	sdktranslator "github.com/router-for-me/CLIProxyAPI/v6/sdk/translator"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/config"
+	cliproxyauth "github.com/qinye6/CLIProxyAPIUltra/sdk/cliproxy/auth"
+	cliproxyexecutor "github.com/qinye6/CLIProxyAPIUltra/sdk/cliproxy/executor"
+	sdktranslator "github.com/qinye6/CLIProxyAPIUltra/sdk/translator"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )

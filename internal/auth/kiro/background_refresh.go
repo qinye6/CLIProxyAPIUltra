@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/config"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/config"
 	"golang.org/x/sync/semaphore"
 )
 

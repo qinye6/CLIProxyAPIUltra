@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/thinking"
-	"github.com/router-for-me/CLIProxyAPI/v6/internal/util"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/thinking"
+	"github.com/qinye6/CLIProxyAPIUltra/internal/util"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
