@@ -6,6 +6,7 @@ builds:
   - id: "cli-proxy-api-plus"
     env:
       - CGO_ENABLED=0
+      - GO111MODULE=on
     goos:
       - linux
       - windows
@@ -15,6 +16,7 @@ builds:
       - arm64
     main: ./cmd/server/
     binary: cli-proxy-api-plus
+    dir: .
     mod_timestamp: "{{ .CommitTimestamp }}"
     ldflags:
       - -s -w -X 'main.Version={{.Version}}-plus' -X 'main.Commit={{.ShortCommit}}' -X 'main.BuildDate={{.Date}}'
