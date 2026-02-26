@@ -1,3 +1,7 @@
+before:
+  hooks:
+    - go mod download
+
 builds:
   - id: "cli-proxy-api-plus"
     env:
