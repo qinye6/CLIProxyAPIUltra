@@ -3314,9 +3314,9 @@ func (h *Handler) verifyCodexAuthToken(ctx context.Context, auth *coreauth.Auth)
 	defer cancelRefresh()
 
 	// TODO: Implement proper OAuth token refresh for Codex
-	// For now, use the existing access token
+	// For now, use the existing access token from metadata
 	_ = refreshCtx
-	accessToken := auth.AccessToken
+	accessToken := stringValue(auth.Metadata, "access_token")
 	if strings.TrimSpace(accessToken) == "" {
 		return true, "token is empty", nil
 	}
@@ -3395,13 +3395,6 @@ func codexAccountID(auth *coreauth.Auth) string {
 			return value
 		}
 	}
-	ts, ok := auth.Storage.(baseauth.TokenStorage)
-	if !ok || ts == nil {
-		return ""
-	}
-	claims := ts.Claims()
-	if claims == nil {
-		return ""
-	}
-	return strings.TrimSpace(claims.GetAccountID())
+	// If not found in metadata, return empty
+	return ""
 }
