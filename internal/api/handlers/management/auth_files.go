@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	baseauth "github.com/qinye6/CLIProxyAPIUltra/internal/auth"
 	"github.com/qinye6/CLIProxyAPIUltra/internal/auth/antigravity"
 	"github.com/qinye6/CLIProxyAPIUltra/internal/auth/claude"
 	"github.com/qinye6/CLIProxyAPIUltra/internal/auth/codex"
