@@ -2,7 +2,6 @@ builds:
   - id: "cli-proxy-api-plus"
     env:
       - CGO_ENABLED=0
-      - GOFLAGS=-mod=mod
     goos:
       - linux
       - windows
