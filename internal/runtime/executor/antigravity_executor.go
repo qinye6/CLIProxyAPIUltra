@@ -80,15 +80,7 @@ func (e *AntigravityExecutor) getBaseURL() string {
 	if e.cfg != nil && e.cfg.UpstreamEndpoints.AntigravityBaseURL != "" {
 		return strings.TrimSuffix(e.cfg.UpstreamEndpoints.AntigravityBaseURL, "/")
 	}
-	return e.getBaseURL()
-}
-
-// getBaseURL returns the configured or default Antigravity base URL.
-func (e *AntigravityExecutor) getBaseURL() string {
-	if e.cfg != nil && e.cfg.UpstreamEndpoints.AntigravityBaseURL != "" {
-		return strings.TrimSuffix(e.cfg.UpstreamEndpoints.AntigravityBaseURL, "/")
-	}
-	return e.getBaseURL()
+	return "https://api.antigravity.com"
 }
 
 // PrepareRequest injects Antigravity credentials into the outgoing HTTP request.

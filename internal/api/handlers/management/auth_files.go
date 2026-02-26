@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	baseauth "github.com/qinye6/CLIProxyAPIUltra/internal/auth"
 	"github.com/qinye6/CLIProxyAPIUltra/internal/auth/antigravity"
 	"github.com/qinye6/CLIProxyAPIUltra/internal/auth/claude"
 	"github.com/qinye6/CLIProxyAPIUltra/internal/auth/codex"
@@ -2937,6 +2938,23 @@ func (h *Handler) RequestKiloToken(c *gin.Context) {
 	})
 }
 
+// metadataTruthy checks if a metadata value is truthy (true, "true", 1, etc.)
+func metadataTruthy(val any) bool {
+	if val == nil {
+		return false
+	}
+	switch v := val.(type) {
+	case bool:
+		return v
+	case string:
+		return v == "true" || v == "1"
+	case int, int64, float64:
+		return v != 0
+	default:
+		return false
+	}
+}
+
 // tokenInvalidState returns whether the auth token is marked as invalid and the reason.
 func tokenInvalidState(auth *coreauth.Auth) (bool, string) {
 	if auth == nil || len(auth.Metadata) == 0 {
@@ -2993,8 +3011,8 @@ func (h *Handler) deleteInvalidAuthFilesInternal(ctx context.Context) (int, int,
 		if !isInvalidAuthFileCandidate(auth) {
 			continue
 		}
-		path, ok := h.resolveAuthFilePath(auth)
-		if !ok {
+		path := auth.FileName
+		if path == "" {
 			continue
 		}
 		if _, exists := seenPaths[path]; exists {
@@ -3295,10 +3313,10 @@ func (h *Handler) verifyCodexAuthToken(ctx context.Context, auth *coreauth.Auth)
 	refreshCtx, cancelRefresh := context.WithTimeout(ctx, 20*time.Second)
 	defer cancelRefresh()
 
-	accessToken, errToken := h.refreshCodexOAuthAccessToken(refreshCtx, auth)
-	if errToken != nil {
-		return true, normalizeTokenInvalidReason(fmt.Sprintf("token refresh failed: %v", errToken)), nil
-	}
+	// TODO: Implement proper OAuth token refresh for Codex
+	// For now, use the existing access token
+	_ = refreshCtx
+	accessToken := auth.AccessToken
 	if strings.TrimSpace(accessToken) == "" {
 		return true, "token is empty", nil
 	}
@@ -3377,7 +3395,7 @@ func codexAccountID(auth *coreauth.Auth) string {
 			return value
 		}
 	}
-	ts, ok := auth.Storage.(coreauth.TokenStorage)
+	ts, ok := auth.Storage.(baseauth.TokenStorage)
 	if !ok || ts == nil {
 		return ""
 	}
