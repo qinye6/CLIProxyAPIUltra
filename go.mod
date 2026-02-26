@@ -1,6 +1,6 @@
 module github.com/qinye6/CLIProxyAPIUltra
 
-go 1.23
+go 1.24.2
 
 require (
 	github.com/andybalholm/brotli v1.0.6
