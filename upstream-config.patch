@@ -1,0 +1,33 @@
+diff --git a/internal/config/config.go b/internal/config/config.go
+index 1234567..abcdefg 100644
+--- a/internal/config/config.go
++++ b/internal/config/config.go
+@@ -132,6 +132,10 @@ type Config struct {
+ 	// from your current session. Default: false.
+ 	IncognitoBrowser bool `yaml:"incognito-browser" json:"incognito-browser"`
+
++	// UpstreamEndpoints defines custom upstream API endpoints for OAuth providers.
++	// If not specified, default endpoints will be used.
++	UpstreamEndpoints UpstreamEndpoints `yaml:"upstream-endpoints" json:"upstream-endpoints"`
++
+ 	legacyMigrationPending bool `yaml:"-" json:"-"`
+ }
+
+@@ -144,6 +148,17 @@ type ClaudeHeaderDefaults struct {
+ 	Timeout        string `yaml:"timeout" json:"timeout"`
+ }
+
++// UpstreamEndpoints defines custom upstream API endpoints for OAuth providers.
++type UpstreamEndpoints struct {
++	// AntigravityBaseURL is the base URL for Antigravity API.
++	// Default: https://cloudcode-pa.googleapis.com
++	AntigravityBaseURL string `yaml:"antigravity-base-url" json:"antigravity-base-url"`
++
++	// GeminiCLIBaseURL is the base URL for Gemini CLI API.
++	// Default: https://cloudcode-pa.googleapis.com
++	GeminiCLIBaseURL string `yaml:"gemini-cli-base-url" json:"gemini-cli-base-url"`
++}
++
+ // TLSConfig holds HTTPS server settings.
+ type TLSConfig struct {
+ 	// Enable toggles HTTPS server mode.

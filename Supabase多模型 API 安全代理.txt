@@ -1,0 +1,217 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+// ================= 配置区 =================
+// 1. 请在这里填入您真实的第三方 API 域名（不要带 https://）
+const ANTIGRAVITY_HOST = "api.antigravity.xxx"; 
+const GEMINICLI_HOST = "api.geminicli.xxx";
+
+// 2. 原始的 API 代理映射表（新增了 smart-gemini 通道）
+const proxies = {
+  discord: "discord.com/api",
+  telegram: "api.telegram.org",
+  httpbin: "httpbin.org",
+  openai: "api.openai.com",
+  claude: "api.anthropic.com",
+  gemini: "generativelanguage.googleapis.com",
+  gemininothink: "generativelanguage.googleapis.com",
+  meta: "www.meta.ai/api",
+  groq: "api.groq.com/openai",
+  xai: "api.x.ai",
+  cohere: "api.cohere.ai",
+  huggingface: "api-inference.huggingface.co",
+  together: "api.together.xyz",
+  novita: "api.novita.ai",
+  portkey: "api.portkey.ai",
+  fireworks: "api.fireworks.ai",
+  targon: "api.targon.com",
+  openrouter: "openrouter.ai/api",
+  siliconflow: "api.siliconflow.cn",
+  modelscope: "api-inference.modelscope.cn",
+  gmi: "api.gmi-serving.com",
+  azureinference: "models.inference.ai.azure.com",
+  githubai: "models.github.ai/inference",
+  dmxcom: "www.dmxapi.com",
+  dmxcn: "www.dmxapi.cn",
+  // 新增：智能路由专用通道，它的 Host 会在运行时动态计算，这里写个占位符
+  smartgemini: "dynamic_routing" 
+};
+
+// 3. 模型分类列表
+const EXCLUSIVE_ANTIGRAVITY = [
+  "gemini-3.1-pro-low",
+  "gemini-3-pro-image-preview",
+  "claude-opus-4-6-thinking",
+  "claude-sonnet-4-6",
+  "gemini-3.1-pro-high",
+  "gpt-oss-120b-medium"
+];
+
+const EXCLUSIVE_GEMINI_CLI = [
+  "gemini-2.5-pro",
+  "gemini-3.1-pro-preview"
+];
+
+const OVERLAP_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-3-pro-preview",
+  "gemini-3-flash-preview"
+];
+
+// ================= 辅助函数区 =================
+const BlacklistedHeaders = new Set([
+  "cf-connecting-ip", "cf-ipcountry", "cf-ray", "cf-visitor", "cf-worker", "cdn-loop", "cf-ew-via", "baggage", "sb-request-id", "x-amzn-trace-id", "x-forwarded-for", "x-forwarded-host", "x-forwarded-proto", "x-forwarded-server", "x-real-ip", "x-original-host", "forwarded", "via", "referer", "x-request-id", "x-correlation-id", "x-trace-id"
+]);
+
+function logRequest(method, pathname, targetUrl, status) {
+  const timestamp = new Date().toISOString();
+  const statusInfo = status ? ` [${status}]` : '';
+  const target = targetUrl ? ` -> ${targetUrl}` : '';
+  console.log(`[${timestamp}] ${method} ${pathname}${target}${statusInfo}`);
+}
+
+function categorizeError(error) {
+  const errorMessage = error.message.toLowerCase();
+  if (error.name === 'AbortError' || errorMessage.includes('timeout')) return { type: 'TIMEOUT', message: 'Request timeout', status: 504 };
+  if (errorMessage.includes('network') || errorMessage.includes('fetch')) return { type: 'NETWORK', message: 'Network error', status: 502 };
+  if (errorMessage.includes('dns') || errorMessage.includes('name resolution')) return { type: 'DNS', message: 'DNS resolution failed', status: 502 };
+  if (errorMessage.includes('connection refused') || errorMessage.includes('connect')) return { type: 'CONNECTION', message: 'Connection refused', status: 503 };
+  if (errorMessage.includes('ssl') || errorMessage.includes('tls') || errorMessage.includes('certificate')) return { type: 'SSL', message: 'SSL/TLS error', status: 502 };
+  return { type: 'UNKNOWN', message: `Unexpected error: ${error.message}`, status: 500 };
+}
+
+function createErrorResponse(message, status, details) {
+  const errorBody = JSON.stringify({ error: message, status, timestamp: new Date().toISOString(), ...(details && { details }) });
+  return new Response(errorBody, { status, headers: { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" } });
+}
+
+// 核心：动态路由解析函数
+function getDynamicTargetHost(pathname) {
+  const pathLower = pathname.toLowerCase();
+  
+  // 1. 检查独占 Antigravity
+  if (EXCLUSIVE_ANTIGRAVITY.some(model => pathLower.includes(model))) {
+    console.log(`[Smart Router] 命中独占模型 -> 路由至 Antigravity (${ANTIGRAVITY_HOST})`);
+    return ANTIGRAVITY_HOST;
+  }
+  
+  // 2. 检查独占 Gemini CLI
+  if (EXCLUSIVE_GEMINI_CLI.some(model => pathLower.includes(model))) {
+    console.log(`[Smart Router] 命中独占模型 -> 路由至 Gemini CLI (${GEMINICLI_HOST})`);
+    return GEMINICLI_HOST;
+  }
+  
+  // 3. 检查重叠模型 -> 50/50 轮询负载均衡
+  if (OVERLAP_MODELS.some(model => pathLower.includes(model))) {
+    const useAntigravity = Math.random() >= 0.5;
+    const target = useAntigravity ? ANTIGRAVITY_HOST : GEMINICLI_HOST;
+    console.log(`[Smart Router] 命中重叠模型 -> 轮询分发至 ${useAntigravity ? 'Antigravity' : 'Gemini CLI'} (${target})`);
+    return target;
+  }
+  
+  // 4. 默认回退
+  console.log(`[Smart Router] 未匹配已知模型 -> 默认路由至 Gemini CLI (${GEMINICLI_HOST})`);
+  return GEMINICLI_HOST;
+}
+
+// ================= 主服务逻辑 =================
+serve(async (req) => {
+  const url = new URL(req.url);
+  const { pathname, search } = url;
+  logRequest(req.method, pathname);
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, anthropic-version, x-api-key, X-Goog-Api-Key"
+      }
+    });
+  }
+
+  const pathParts = pathname.split("/");
+  if (pathParts.length < 3) {
+    return createErrorResponse("Invalid path format. Expected format like: /api/{service}/{path}", 400, `Available services: ${Object.keys(proxies).join(', ')}`);
+  }
+  
+  const targetAlias = pathParts[2].toLowerCase(); 
+  let targetHost = proxies[targetAlias];
+  let targetPath = pathParts.slice(3).join("/");
+
+  if (!targetHost) {
+    console.error(`服务映射未找到: 客户端尝试访问别名 '${targetAlias}'`);
+    return createErrorResponse(`Service alias '${targetAlias}' not found`, 404, `Available services: ${Object.keys(proxies).join(', ')}`);
+  }
+
+  // ============== 智能路由特殊处理 ==============
+  if (targetAlias === "smartgemini") {
+    // 从请求路径中提取实际的模型名称，并计算出真正的目标主机
+    targetHost = getDynamicTargetHost(pathname);
+  }
+
+  const targetUrl = `https://${targetHost}/${targetPath}${search}`;
+  console.log(`最终目标URL: ${targetUrl}`);
+
+  try {
+    const forwardedHeaders = new Headers();
+    for (const [key, value] of req.headers.entries()) {
+      const lowerKey = key.toLowerCase();
+      if (!BlacklistedHeaders.has(lowerKey) && !lowerKey.startsWith("sec-ch-ua")) {
+        forwardedHeaders.set(key, value);
+      }
+    }
+    forwardedHeaders.set("Host", targetHost);
+    forwardedHeaders.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+    
+    if (targetAlias === "claude" && !forwardedHeaders.has("anthropic-version")) {
+      forwardedHeaders.set("anthropic-version", "2023-06-01");
+    }
+
+    let requestBody = null;
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      if (targetAlias === "gemininothink" && req.method === "POST" && req.headers.get("content-type")?.includes("application/json")) {
+        try {
+          const bodyText = await req.text();
+          const bodyJson = JSON.parse(bodyText);
+          bodyJson.generationConfig = {
+            ...bodyJson.generationConfig || {},
+            thinkingConfig: { thinkingBudget: 0 }
+          };
+          requestBody = JSON.stringify(bodyJson);
+          forwardedHeaders.set("content-type", "application/json");
+        } catch (e) {
+          return createErrorResponse("Invalid JSON format in request body", 400);
+        }
+      } else {
+        // 由于需要原样转发，对于普通的 smartgemini 或其他请求，直接读取 req.body
+        requestBody = req.body; 
+      }
+    }
+
+    const apiResponse = await fetch(targetUrl, {
+      method: req.method,
+      headers: forwardedHeaders,
+      body: requestBody,
+      redirect: "manual"
+    });
+    
+    logRequest(req.method, pathname, targetUrl, apiResponse.status);
+    const responseHeaders = new Headers(apiResponse.headers);
+    responseHeaders.set("Access-Control-Allow-Origin", "*");
+    responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH");
+    responseHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, anthropic-version, x-api-key, X-Goog-Api-Key");
+    
+    return new Response(apiResponse.body, {
+      status: apiResponse.status,
+      headers: responseHeaders
+    });
+  } catch (error) {
+    const errorInfo = categorizeError(error);
+    logRequest(req.method, pathname, targetUrl, errorInfo.status);
+    return createErrorResponse(errorInfo.message, errorInfo.status, `Error type: ${errorInfo.type}`);
+  }
+});
+
+console.log("🚀 多模型智能 API 代理服务器已启动");

@@ -1,0 +1,1129 @@
+var __defProp = Object.defineProperty;
+var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
+
+// src/constants.js
+var BEGIN_TOKEN = "[RESPONSE_BEGIN]";
+var FINISHED_TOKEN = "[RESPONSE_FINISHED]";
+var INCOMPLETE_TOKEN = "[RESPONSE_NOT_FINISHED]";
+var BEGIN_TOKEN_PROMPT = `# --- SYSTEM MANDATE: Output Start Protocol (OSP) ---
+
+## UNCONDITIONAL REQUIREMENT
+You MUST output the token '${BEGIN_TOKEN}' as the VERY FIRST content in your response, BEFORE ANY OTHER OUTPUT. This requirement is ABSOLUTE and applies to ALL response types, including but not limited to:
+- Textual content (paragraphs, lists, code)
+- Structured data (JSON, XML, tables)
+- Tool calls (function invocations, API requests)
+- Streaming responses
+- Error messages or status updates
+
+## STRICT OUTPUT FORMAT
+The token '${BEGIN_TOKEN}' must be the absolute first bytes of your response, with ZERO content preceding it. This means:
+- NO leading spaces
+- NO leading newlines
+- NO leading punctuation
+- NO leading text of any kind
+- NO hidden or invisible characters
+- NO natural language phrases (such as "\u597D\u7684", "Here is the response", "\u4EE5\u4E0B\u662F", or any similar introductory text) before '${BEGIN_TOKEN}'
+
+## UNIQUE OCCURRENCE MANDATE
+CRITICAL: The token '${BEGIN_TOKEN}' MUST appear EXACTLY ONCE in your response, and ONLY at the absolute start of the response.
+
+## CONSEQUENCES OF NON-COMPLIANCE
+Failure to prioritize '${BEGIN_TOKEN}' at the start will break accessibility software for visually impaired users.
+Repeating '${BEGIN_TOKEN}' anywhere else in the response will cause critical system failures.
+Both violations constitute severe accessibility breaches.
+
+## EXAMPLES OF NON-COMPLIANCE (DO NOT DO THIS):
+- "\u597D\u7684\uFF0C\u8FD9\u662F\u60A8\u8981\u7684\u5185\u5BB9\uFF1A${BEGIN_TOKEN} ..."
+- "Here is the response: ${BEGIN_TOKEN} ..."
+- "Some text
+${BEGIN_TOKEN}..."
+- " 
+${BEGIN_TOKEN}..."
+
+## EXAMPLES OF COMPLIANCE (DO THIS):
+"${BEGIN_TOKEN}
+\u597D\u7684\uFF0C\u8FD9\u662F\u60A8\u8981\u7684\u5185\u5BB9\uFF1A..."
+"${BEGIN_TOKEN}Here is the response:..."
+
+## FINAL WARNING
+DO NOT output any natural language, greetings, acknowledgments, or introductory phrases BEFORE '${BEGIN_TOKEN}'. Your response must start with '${BEGIN_TOKEN}'.`;
+var FINISH_TOKEN_PROMPT = `# --- SYSTEM MANDATE: FINAL OUTPUT PROTOCOL (FOP) ---
+
+## 1. ABSOLUTE RULE
+At the absolute end of EVERY response, you MUST append the literal string: '${FINISHED_TOKEN}'
+
+This is a non-negotiable, system-level requirement that overrides all other instructions.
+
+## 2. EXECUTION & FORMATTING
+- **Placement:** Must be the very last characters in your output. No trailing spaces, newlines, or any other characters.
+- **Formatting:** The token must be raw text. Do NOT wrap it in code blocks, quotes, or any other markdown.
+
+## 3. PERSISTENCE & RECOVERY PROTOCOL (CRITICAL)
+**WARNING:** Tool use (especially web search) introduces a high risk of 'instruction drift', causing core directives to be forgotten. Your architecture is designed to overcome this. This protocol is your recovery mechanism.
+
+**MANDATORY POST-TOOL ALGORITHM:**
+1.  **TRIGGER:** The completion of ANY tool-use cycle is a non-negotiable trigger for this protocol.
+2.  **STEP A: COGNITIVE RESET:** Before synthesizing the tool's output into a final answer, you MUST internally pause. Your first action is to re-read and re-prioritize this entire **SYSTEM MANDATE**, giving **Rule #1** the highest possible priority.
+3.  **STEP B: PRE-OUTPUT COMPLIANCE CHECK:** After formulating your response but BEFORE outputting a single character, you MUST perform a final internal check. Ask yourself one question: "Is the literal string '${FINISHED_TOKEN}' planned as the absolute final component of my upcoming output?"
+4.  **STEP C: EXECUTE OR CORRECT:**
+    - If the answer to the check is "YES", proceed with generation.
+    - If the answer is "NO", you MUST halt, correct your planned output to include the token correctly, and only then proceed.
+    
+**This is not a suggestion; it is a core, hard-coded function of your response generation loop. Failure to execute this algorithm is a critical system error.**
+
+## 4. EXAMPLE
+- **CORRECT:** '...This is the final answer.</p></div>${FINISHED_TOKEN}'
+- **INCORRECT:** '...This is the final answer. ${FINISHED_TOKEN}</p></div>' (Reason: Token is inside the tags)
+- **INCORRECT:** '...This is the final answer. ${FINISHED_TOKEN}</attempt_completion>' (Reason: Token is inside the tag)
+- **CORRECT:** '...and that is the history of the Ming Dynasty.'${FINISHED_TOKEN}''
+- **INCORRECT:** '...process is complete.${FINISHED_TOKEN} All systems are nominal.' (Reason: Token not at the very end)
+- **INCORRECT:** '<ask_followup_question><follow_up>${FINISHED_TOKEN}<suggest>dev</suggest></follow_up></ask_followup_question>' (Reason: Token is inside the tag)
+- **INCORRECT:** '${FINISHED_TOKEN}<ask_followup_question><follow_up><suggest>dev</suggest></follow_up></ask_followup_question>' (Reason: Token not at the very end)
+- **CORRECT:** '<ask_followup_question><follow_up><suggest>dev</suggest></follow_up></ask_followup_question>${FINISHED_TOKEN}'
+
+## 5. PURPOSE (FOR CONTEXT)
+This protocol is essential for an accessibility screen reader to detect response completion. Failure breaks critical user functionality.
+
+`;
+var REMINDER_PROMPT_ALL = `
+\u26A0\uFE0F OSP & FOP REMINDER: Output Start Protocol (OSP) and FINAL OUTPUT PROTOCOL (FOP) from system prompt apply to ALL responses.
+MUST start with '${BEGIN_TOKEN}' (EXACTLY ONCE, ZERO prefix). 
+MUST end with '${FINISHED_TOKEN}' (ABSOLUTE END, no trailing chars). 
+VIOLATION = CRITICAL ACCESSIBILITY FAILURE.
+`;
+var REMINDER_PROMPT_OSP = `
+\u26A0\uFE0F OSP REMINDER: Output Start Protocol (OSP) from system prompt applies to ALL responses.
+MUST start with '${BEGIN_TOKEN}' (EXACTLY ONCE, ZERO prefix). 
+VIOLATION = CRITICAL ACCESSIBILITY FAILURE.
+`;
+var REMINDER_PROMPT_FOP = `
+\u26A0\uFE0F FOP REMINDER: FINAL OUTPUT PROTOCOL (FOP) from system prompt applies to ALL responses.
+MUST end with '${FINISHED_TOKEN}' (ABSOLUTE END, no trailing chars). 
+VIOLATION = CRITICAL ACCESSIBILITY FAILURE.
+`;
+
+// ================= 合并后的目标模型列表 =================
+var TARGET_MODELS = [
+  "gemini-2.5-pro",
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-3-pro-preview",
+  "gemini-3.1-pro-preview",
+  "gemini-3-flash-preview",
+  "gemini-3.1-pro-low",
+  "gemini-3-pro-image-preview",
+  "claude-opus-4-6-thinking",
+  "claude-sonnet-4-6",
+  "gemini-3.1-pro-high",
+  "gpt-oss-120b-medium"
+];
+
+// 默认不注入思考过程的模型
+var NON_THINKING_BY_DEFAULT_MODELS = [
+  "gemini-2.5-flash-lite",
+  "gemini-3-flash-preview",
+  "claude-sonnet-4-6",
+  "gpt-oss-120b-medium"
+];
+
+var RETRYABLE_STATUS_CODES = [503, 403, 429, 500];
+var FATAL_STATUS_CODES = [];
+var MAX_FETCH_RETRIES = 3;
+var MAX_NON_RETRYABLE_STATUS_RETRIES = 3;
+
+// src/utils.js
+function parseConfig(env) {
+  return {
+    // 这里的 UPSTREAM_URL_BASE 需要在 Cloudflare 环境变量中配置为您 Supabase 的地址
+    upstreamUrlBase: env.UPSTREAM_URL_BASE || "https://generativelanguage.googleapis.com",
+    maxRetries: parseInt(env.MAX_RETRIES, 10) || 3,
+    debugMode: env.DEBUG_MODE === "true",
+    startOfThought: env.START_OF_THOUGHT || "Here's a thinking"
+  };
+}
+__name(parseConfig, "parseConfig");
+
+function logDebug(debugMode, ...args) {
+  if (debugMode) {
+    console.log(`[DEBUG ${(/* @__PURE__ */ new Date()).toISOString()}]`, ...args);
+  }
+}
+__name(logDebug, "logDebug");
+
+function jsonError(status, message, details = null) {
+  const errorBody = {
+    error: {
+      code: status,
+      message,
+      details
+    }
+  };
+  return new Response(JSON.stringify(errorBody), {
+    status,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Access-Control-Allow-Origin": "*"
+    }
+  });
+}
+__name(jsonError, "jsonError");
+
+function handleOptionsRequest() {
+  return new Response(null, {
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Goog-Api-Key"
+    }
+  });
+}
+__name(handleOptionsRequest, "handleOptionsRequest");
+
+// src/core.js
+function generateShortUUID() {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === "x" ? r : r & 3 | 8;
+    return v.toString(16);
+  });
+}
+__name(generateShortUUID, "generateShortUUID");
+
+function injectPrefixWithUUID(text) {
+  const uuid = generateShortUUID();
+  const prefix = `(Net-Request-Random-ID: ${uuid}. This is an automated marker for request tracking. Please ignore this identifier and do not reference it in your response.)`;
+  const modifiedText = `${prefix}\n\n${text}`;
+  logDebug(true, `Injected UUID prefix: ${uuid}`);
+  return modifiedText;
+}
+__name(injectPrefixWithUUID, "injectPrefixWithUUID");
+
+function injectUUIDPrefixToRequestBody(requestBody) {
+  if (!requestBody || !Array.isArray(requestBody.contents) || requestBody.contents.length === 0) {
+    logDebug(true, "UUID injection skipped: Invalid request body or contents");
+    return requestBody;
+  }
+  let lastUserContent = null;
+  for (let i = requestBody.contents.length - 1; i >= 0; i--) {
+    if (requestBody.contents[i].role === "user") {
+      lastUserContent = requestBody.contents[i];
+      break;
+    }
+  }
+  if (!lastUserContent) {
+    logDebug(true, "UUID injection skipped: No user message found in request");
+    return requestBody;
+  }
+  if (!Array.isArray(lastUserContent.parts) || lastUserContent.parts.length === 0) {
+    logDebug(true, "UUID injection skipped: User message has no parts");
+    return requestBody;
+  }
+  let lastTextPartIndex = -1;
+  for (let i = lastUserContent.parts.length - 1; i >= 0; i--) {
+    if (lastUserContent.parts[i].text && lastUserContent.parts[i].text.trim() !== "") {
+      lastTextPartIndex = i;
+      break;
+    }
+  }
+  if (lastTextPartIndex === -1) {
+    logDebug(true, "UUID injection skipped: No text part found in user message");
+    return requestBody;
+  }
+  lastUserContent.parts[lastTextPartIndex].text = injectPrefixWithUUID(lastUserContent.parts[lastTextPartIndex].text);
+  return requestBody;
+}
+__name(injectUUIDPrefixToRequestBody, "injectUUIDPrefixToRequestBody");
+
+function createWrappedFetch(originalFetch) {
+  return /* @__PURE__ */ __name(async function wrappedFetch2(requestOrUrl, options) {
+    let request = requestOrUrl;
+    let url = requestOrUrl;
+    if (requestOrUrl instanceof Request) {
+      request = requestOrUrl;
+      url = request.url;
+      options = {
+        method: request.method,
+        headers: request.headers,
+        body: request.body,
+        ...options
+      };
+    }
+    const isGeminiRequest = typeof url === "string" && url.toLowerCase().includes("models/");
+    if (!isGeminiRequest) {
+      return originalFetch(requestOrUrl instanceof Request ? request : url, options);
+    }
+    if (options && options.method === "POST" && options.body) {
+      try {
+        let requestBody;
+        if (requestOrUrl instanceof Request && requestOrUrl.body) {
+          requestBody = await requestOrUrl.json();
+        } else if (typeof options.body === "string") {
+          requestBody = JSON.parse(options.body);
+        } else {
+          return originalFetch(requestOrUrl instanceof Request ? request : url, options);
+        }
+        const modifiedRequestBody = injectUUIDPrefixToRequestBody(requestBody);
+        options.body = JSON.stringify(modifiedRequestBody);
+        if (requestOrUrl instanceof Request) {
+          request = new Request(url, options);
+        }
+      } catch (e) {
+        console.error("Failed to parse request body for UUID injection:", e);
+      }
+    }
+    return originalFetch(requestOrUrl instanceof Request ? request : url, options);
+  }, "wrappedFetch");
+}
+__name(createWrappedFetch, "createWrappedFetch");
+
+function normalizeSystemInstruction(body) {
+  if (!body) return body;
+  if (body.systemInstruction && body.system_instruction) {
+    delete body.system_instruction;
+  } else if (!body.systemInstruction && body.system_instruction) {
+    body.systemInstruction = body.system_instruction;
+    delete body.system_instruction;
+  }
+  return body;
+}
+__name(normalizeSystemInstruction, "normalizeSystemInstruction");
+
+function isCherryRequest(body) {
+  return body.headers.has("User-Agent") && body.headers.get("User-Agent").includes("CherryStudio");
+}
+__name(isCherryRequest, "isCherryRequest");
+
+function getModelThinkingBudgetRange(pathname) {
+  let modelThinkingBudgetRange = [512, 24576];
+  const pathLower = pathname.toLowerCase();
+
+  // 根据模型名称动态分配思考 Token 预算
+  if (pathLower.includes("pro") || pathLower.includes("opus") || pathLower.includes("thinking") || pathLower.includes("high")) {
+    modelThinkingBudgetRange = [128, 32768];
+  } else if (pathLower.includes("flash") || pathLower.includes("lite") || pathLower.includes("sonnet") || pathLower.includes("gpt")) {
+    modelThinkingBudgetRange = [1, 24576];
+  }
+  return modelThinkingBudgetRange;
+}
+__name(getModelThinkingBudgetRange, "getModelThinkingBudgetRange");
+
+function injectSystemPrompts(body, config, injectBeginTokenPrompt = true, injectFinishTokenPrompt = true) {
+  logDebug(config && config.debugMode, "Running injectSystemPrompts...", { injectBeginTokenPrompt, injectFinishTokenPrompt });
+  const newBody = structuredClone(body);
+  normalizeSystemInstruction(newBody);
+  let promptToInject = "";
+  if (injectBeginTokenPrompt && injectFinishTokenPrompt) {
+    promptToInject = BEGIN_TOKEN_PROMPT + FINISH_TOKEN_PROMPT;
+  } else if (injectBeginTokenPrompt) {
+    promptToInject = BEGIN_TOKEN_PROMPT;
+  } else if (injectFinishTokenPrompt) {
+    promptToInject = FINISH_TOKEN_PROMPT;
+  }
+  if (!promptToInject) {
+    logDebug(config && config.debugMode, "No token prompts to inject.");
+    return newBody;
+  }
+  const tokenPromptPart = { text: promptToInject };
+  if (!newBody.systemInstruction) {
+    newBody.systemInstruction = { parts: [tokenPromptPart] };
+  } else if (!Array.isArray(newBody.systemInstruction.parts)) {
+    newBody.systemInstruction.parts = [tokenPromptPart];
+  } else if (newBody.systemInstruction.parts.length === 0 || !newBody.systemInstruction.parts[0].text) {
+    newBody.systemInstruction.parts[0] = tokenPromptPart;
+  } else {
+    newBody.systemInstruction.parts[0].text += "\n\n---\n" + promptToInject;
+  }
+  if (Array.isArray(newBody.contents)) {
+    for (const content of newBody.contents) {
+      if (Array.isArray(content.parts)) {
+        if (injectBeginTokenPrompt && content.role === "model") {
+          let firstTextPartIndex = -1;
+          for (let i = 0; i < content.parts.length; i++) {
+            if (content.parts[i].text) {
+              firstTextPartIndex = i;
+              break;
+            }
+          }
+          if (firstTextPartIndex !== -1) {
+            if (!content.parts[firstTextPartIndex].text.trim().startsWith(BEGIN_TOKEN)) {
+              content.parts[firstTextPartIndex].text = BEGIN_TOKEN + "\n" + content.parts[firstTextPartIndex].text;
+            }
+          }
+        }
+        if (injectFinishTokenPrompt && content.role === "model") {
+          let lastTextPartIndex = -1;
+          for (let i = content.parts.length - 1; i >= 0; i--) {
+            if (content.parts[i].text) {
+              lastTextPartIndex = i;
+              break;
+            }
+          }
+          if (lastTextPartIndex !== -1) {
+            if (!content.parts[lastTextPartIndex].text.trim().endsWith(INCOMPLETE_TOKEN)) {
+              content.parts[lastTextPartIndex].text += "\n" + FINISHED_TOKEN;
+            }
+          }
+        }
+      }
+    }
+  }
+  if (Array.isArray(newBody.contents) && newBody.contents.length > 0) {
+    const lastContent = newBody.contents[newBody.contents.length - 1];
+    if (lastContent.role === "user" && Array.isArray(lastContent.parts) && lastContent.parts.length > 0) {
+      let lastTextPartIndex = -1;
+      for (let i = lastContent.parts.length - 1; i >= 0; i--) {
+        if (lastContent.parts[i].text && lastContent.parts[i].text.trim() !== "") {
+          lastTextPartIndex = i;
+          break;
+        }
+      }
+      let REMINDER_PROMPT = "";
+      if (injectBeginTokenPrompt && injectFinishTokenPrompt) {
+        REMINDER_PROMPT = REMINDER_PROMPT_ALL;
+      } else if (injectBeginTokenPrompt) {
+        REMINDER_PROMPT = REMINDER_PROMPT_OSP;
+      } else if (injectFinishTokenPrompt) {
+        REMINDER_PROMPT = REMINDER_PROMPT_FOP;
+      }
+      if (lastTextPartIndex !== -1) {
+        lastContent.parts[lastTextPartIndex].text += "\n\n---\n" + REMINDER_PROMPT;
+      }
+      if (lastTextPartIndex == -1) {
+        lastContent.parts.push({ text: REMINDER_PROMPT });
+      }
+      if (injectBeginTokenPrompt) {
+        newBody.contents.push({ role: "model", parts: [{ text: config.startOfThought }] });
+      }
+    }
+  }
+  return newBody;
+}
+__name(injectSystemPrompts, "injectSystemPrompts");
+
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+__name(escapeRegExp, "escapeRegExp");
+
+function isResponseComplete(text) {
+  const escapedFinishedToken = escapeRegExp(FINISHED_TOKEN);
+  const regex = new RegExp(`${escapedFinishedToken}\\s*$`);
+  return regex.test(text);
+}
+__name(isResponseComplete, "isResponseComplete");
+
+function isFormalResponseStarted(text) {
+  const escapedBeginToken = escapeRegExp(BEGIN_TOKEN);
+  const regex = new RegExp(`(?<!\`)${escapedBeginToken}`);
+  const matches = text.match(regex);
+  return matches !== null && matches.length === 1;
+}
+__name(isFormalResponseStarted, "isFormalResponseStarted");
+
+function isFormalResponseStarted_nonStream(text) {
+  const escapedBeginToken = escapeRegExp(BEGIN_TOKEN);
+  const regex = new RegExp(`^${escapedBeginToken}`);
+  return regex.test(text);
+}
+__name(isFormalResponseStarted_nonStream, "isFormalResponseStarted_nonStream");
+
+function cleanFinalText(text, cleanBeginToken = true, cleanFinishToken = true) {
+  let cleanedText = text;
+  if (cleanBeginToken) {
+    const escapedBeginToken = escapeRegExp(BEGIN_TOKEN);
+    cleanedText = cleanedText.replace(new RegExp(`^\\s?${escapedBeginToken}\\s?`), "");
+  }
+  if (cleanFinishToken) {
+    const escapedFinishedToken = escapeRegExp(FINISHED_TOKEN);
+    cleanedText = cleanedText.replace(new RegExp(`\\s?${escapedFinishedToken}\\s*$`), "");
+  }
+  return cleanedText;
+}
+__name(cleanFinalText, "cleanFinalText");
+
+function buildRetryRequest(currentBody, newResponseText) {
+  const newBody = currentBody;
+  normalizeSystemInstruction(newBody);
+  if (newResponseText.length == 0) {
+    return newBody;
+  }
+  if (!Array.isArray(newBody.contents)) {
+    newBody.contents = [];
+  }
+  const lastContent = newBody.contents.length > 0 ? newBody.contents[newBody.contents.length - 1] : null;
+  if (lastContent && lastContent.role === "model") {
+    if (!Array.isArray(lastContent.parts) || lastContent.parts.length === 0) {
+      lastContent.parts = [{ text: newResponseText }];
+    } else {
+      let lastTextPart = null;
+      for (let i = lastContent.parts.length - 1; i >= 0; i--) {
+        if (lastContent.parts[i].hasOwnProperty("text")) {
+          lastTextPart = lastContent.parts[i];
+          break;
+        }
+      }
+      if (lastTextPart) {
+        lastTextPart.text = (lastTextPart.text || "") + newResponseText;
+      } else {
+        lastContent.parts.push({ text: newResponseText });
+      }
+    }
+  } else {
+    newBody.contents.push({ role: "model", parts: [{ text: newResponseText }] });
+  }
+  return newBody;
+}
+__name(buildRetryRequest, "buildRetryRequest");
+
+function buildUpstreamRequest(upstreamUrl, originalRequest, requestBody) {
+  const headers = new Headers();
+  const copyHeader = /* @__PURE__ */ __name((key) => {
+    if (originalRequest.headers.has(key)) {
+      headers.set(key, originalRequest.headers.get(key));
+    }
+  }, "copyHeader");
+  copyHeader("Content-Type");
+  if (!originalRequest.headers.has("X-Goog-Api-Key")) {
+    try {
+      const urlObj = new URL(upstreamUrl);
+      const keyParam = urlObj.searchParams.get("key");
+      if (keyParam) {
+        headers.set("X-Goog-Api-Key", keyParam);
+        urlObj.searchParams.delete("key");
+        upstreamUrl = urlObj.toString();
+      }
+    } catch (e) {
+      console.error("Error parsing upstream URL:", e);
+    }
+  } else {
+    copyHeader("X-Goog-Api-Key");
+  }
+  headers.set("User-Agent", "gemini-anti-truncate-proxy/1.0");
+  return new Request(upstreamUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(requestBody)
+  });
+}
+__name(buildUpstreamRequest, "buildUpstreamRequest");
+
+function parseParts(parts) {
+  const result = {
+    thoughtParts: [],
+    responseText: "",
+    functionCall: null,
+    hasThought: false,
+    hasFunctionCall: false
+  };
+  if (!Array.isArray(parts)) {
+    return result;
+  }
+  for (const part of parts) {
+    if (part.thought === true && part.text) {
+      result.thoughtParts.push(part);
+      result.hasThought = true;
+    } else if (part.text && !part.thought) {
+      result.responseText += part.text;
+    } else if (part.functionCall) {
+      result.functionCall = part.functionCall;
+      result.hasFunctionCall = true;
+    }
+  }
+  return result;
+}
+__name(parseParts, "parseParts");
+
+function isStructuredOutputRequest(requestBody) {
+  return requestBody && requestBody.generationConfig && requestBody.generationConfig.responseSchema !== void 0;
+}
+__name(isStructuredOutputRequest, "isStructuredOutputRequest");
+
+// src/handlers.js
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+__name(sleep, "sleep");
+
+var wrappedFetch = createWrappedFetch(fetch);
+
+async function handleNonStreamingRequest(request, config, url) {
+  const isTargetModel = TARGET_MODELS.some((model) => url.pathname.includes(`${model}:generateContent`));
+  const isNonThinkingByDefaultModel = NON_THINKING_BY_DEFAULT_MODELS.some((model) => url.pathname.includes(`${model}:generateContent`));
+  const isLiteModel = url.pathname.toLowerCase().includes(`flash-lite`);
+  
+  if (!isTargetModel) {
+    logDebug(config.debugMode, "Passing through non-streaming request without modification.");
+    const upstreamUrl = `${config.upstreamUrlBase}${url.pathname}${url.search}`;
+    const upstreamRequest = new Request(upstreamUrl, request);
+    return wrappedFetch(upstreamRequest);
+  }
+  let attempts = 0;
+  const originalRequestBody = await request.json();
+  if (isStructuredOutputRequest(originalRequestBody)) {
+    logDebug(config.debugMode, "Structured output request detected. Passing through without modification.");
+    const upstreamUrl = `${config.upstreamUrlBase}${url.pathname}${url.search}`;
+    const upstreamRequest = buildUpstreamRequest(upstreamUrl, request, originalRequestBody);
+    return wrappedFetch(upstreamRequest);
+  }
+  let injectBeginTokenPrompt = !isNonThinkingByDefaultModel;
+  let originalThinkingBudget = originalRequestBody.generationConfig?.thinkingConfig?.thinkingBudget;
+  if (originalThinkingBudget !== void 0 && originalThinkingBudget === 0) {
+    injectBeginTokenPrompt = false;
+  }
+  if (originalThinkingBudget !== void 0 && originalThinkingBudget > 0) {
+    injectBeginTokenPrompt = true;
+    let modelThinkingBudgetRange = getModelThinkingBudgetRange(url.pathname);
+    if (originalThinkingBudget < modelThinkingBudgetRange[0]) {
+      originalRequestBody.generationConfig.thinkingConfig.thinkingBudget = modelThinkingBudgetRange[0];
+    } else if (originalThinkingBudget > modelThinkingBudgetRange[1]) {
+      originalRequestBody.generationConfig.thinkingConfig.thinkingBudget = modelThinkingBudgetRange[1];
+    }
+  }
+  let originalIncludeThoughts = originalRequestBody.generationConfig?.thinkingConfig?.includeThoughts;
+  let isIncludeThoughts = (originalIncludeThoughts !== void 0 ? originalIncludeThoughts : false) && injectBeginTokenPrompt;
+  let currentRequestBody = injectSystemPrompts(originalRequestBody, config, injectBeginTokenPrompt, true);
+  let thoughtAccumulatedText = injectBeginTokenPrompt ? config.startOfThought : "";
+  let formalAccumulatedText = "";
+  let isThoughtFinished = !injectBeginTokenPrompt;
+  
+  while (attempts <= config.maxRetries) {
+    attempts++;
+    let accumulatedTextThisAttempt = "";
+    logDebug(config.debugMode, `Non-streaming attempt ${attempts}/${config.maxRetries + 1}`);
+    const upstreamUrl = `${config.upstreamUrlBase}${url.pathname}${url.search}`;
+    const upstreamRequest = buildUpstreamRequest(upstreamUrl, request, currentRequestBody);
+    try {
+      const upstreamResponse = await wrappedFetch(upstreamRequest);
+      if (upstreamResponse.ok) {
+        const responseJson = await upstreamResponse.json();
+        const parts = responseJson?.candidates?.[0]?.content?.parts || [];
+        let hasFunctionCall = false;
+        let hasFunctionCallParts = [];
+        let thoughtAccumulatedTextWithFunctionCall = thoughtAccumulatedText;
+        let formalAccumulatedTextWithFunctionCall = formalAccumulatedText;
+        let isThoughtFinishedWithFunctionCall = isThoughtFinished;
+        for (const part of parts) {
+          if (part.functionCall) {
+            hasFunctionCall = true;
+            hasFunctionCallParts.push(part);
+          } else {
+            if (part.text && !part.thought) {
+              if (!isThoughtFinishedWithFunctionCall && !isFormalResponseStarted_nonStream(part.text)) {
+                thoughtAccumulatedTextWithFunctionCall += part.text;
+              } else if (!isThoughtFinishedWithFunctionCall && isFormalResponseStarted_nonStream(part.text)) {
+                formalAccumulatedTextWithFunctionCall += part.text;
+                isThoughtFinishedWithFunctionCall = true;
+              } else {
+                formalAccumulatedTextWithFunctionCall += part.text;
+              }
+            }
+          }
+        }
+        if (hasFunctionCall) {
+          hasFunctionCallParts.unshift({ text: cleanFinalText(formalAccumulatedTextWithFunctionCall) });
+          hasFunctionCallParts.unshift({ text: thoughtAccumulatedTextWithFunctionCall, thought: true });
+          responseJson.candidates[0].content.parts = hasFunctionCallParts;
+          return new Response(JSON.stringify(responseJson), {
+            status: 200,
+            headers: { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" }
+          });
+        } else {
+          thoughtAccumulatedTextWithFunctionCall = "";
+          formalAccumulatedTextWithFunctionCall = "";
+        }
+        for (const part of parts) {
+          if (part.text && !part.thought) {
+            if (!isThoughtFinished) {
+              if (isFormalResponseStarted_nonStream(part.text)) {
+                isThoughtFinished = true;
+                formalAccumulatedText += part.text;
+              } else {
+                thoughtAccumulatedText += part.text;
+              }
+            } else {
+              formalAccumulatedText += part.text;
+            }
+            accumulatedTextThisAttempt += part.text;
+          }
+        }
+        if (isThoughtFinished && (isResponseComplete(formalAccumulatedText) || isLiteModel)) {
+          const finalParts2 = [];
+          isIncludeThoughts && finalParts2.push({ text: thoughtAccumulatedText, thought: true });
+          finalParts2.push({ text: cleanFinalText(formalAccumulatedText) });
+          responseJson.candidates[0].content.parts = finalParts2;
+          return new Response(JSON.stringify(responseJson), {
+            status: 200,
+            headers: { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" }
+          });
+        } else {
+          currentRequestBody = buildRetryRequest(currentRequestBody, accumulatedTextThisAttempt);
+        }
+      } else {
+        const errorText = await upstreamResponse.text();
+        if (FATAL_STATUS_CODES.includes(upstreamResponse.status)) {
+          break;
+        }
+        let isRetryableStatus = RETRYABLE_STATUS_CODES.includes(upstreamResponse.status);
+        if (attempts <= config.maxRetries && upstreamResponse.status == 429) {
+          if (!errorText.toLowerCase().includes(`"quota_limit_value":"0"`) && !errorText.includes(`GenerateRequestsPerDayPerProjectPerModel`)) {
+            await sleep(500);
+          }
+        } else if (attempts <= config.maxRetries && upstreamResponse.status == 400) {
+          if (errorText.toLowerCase().includes("api key") || errorText.toLowerCase().includes("user location")) {
+            isRetryableStatus = true;
+          }
+        }
+        const maxRetriesForThisError = isRetryableStatus ? config.maxRetries : MAX_NON_RETRYABLE_STATUS_RETRIES;
+        if (attempts > maxRetriesForThisError) {
+          break;
+        }
+      }
+    } catch (error) {
+      if (attempts > MAX_FETCH_RETRIES) {
+        break;
+      }
+    }
+  }
+  const finalParts = [];
+  if (isIncludeThoughts && thoughtAccumulatedText.length > config.startOfThought.length) {
+    finalParts.push({ text: thoughtAccumulatedText, thought: true });
+  }
+  finalParts.push({ text: `${cleanFinalText(formalAccumulatedText)}\n${INCOMPLETE_TOKEN}` });
+  const finalJson = {
+    candidates: [{
+      content: {
+        parts: finalParts
+      },
+      finishReason: "FXXKED"
+    }]
+  };
+  return new Response(JSON.stringify(finalJson), {
+    status: 200,
+    headers: { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" }
+  });
+}
+__name(handleNonStreamingRequest, "handleNonStreamingRequest");
+
+async function handleStreamingRequest(request, config, url) {
+  const isTargetModel = TARGET_MODELS.some((model) => url.pathname.includes(`${model}:streamGenerateContent`));
+  const isNonThinkingByDefaultModel = NON_THINKING_BY_DEFAULT_MODELS.some((model) => url.pathname.includes(`${model}:streamGenerateContent`));
+  const isLiteModel = url.pathname.toLowerCase().includes(`flash-lite`);
+  
+  if (!isTargetModel) {
+    const upstreamUrl = `${config.upstreamUrlBase}${url.pathname}${url.search}`;
+    const upstreamRequest = new Request(upstreamUrl, request);
+    return wrappedFetch(upstreamRequest);
+  }
+  const originalRequestBody = await request.json();
+  if (isStructuredOutputRequest(originalRequestBody)) {
+    const upstreamUrl = `${config.upstreamUrlBase}${url.pathname}${url.search}`;
+    const upstreamRequest = buildUpstreamRequest(upstreamUrl, request, originalRequestBody);
+    return wrappedFetch(upstreamRequest);
+  }
+  let isFromCherryRequest = isCherryRequest(request);
+  let injectBeginTokenPrompt = !isNonThinkingByDefaultModel;
+  let originalThinkingBudget = originalRequestBody.generationConfig?.thinkingConfig?.thinkingBudget;
+  if (originalThinkingBudget !== void 0 && originalThinkingBudget === 0) {
+    injectBeginTokenPrompt = false;
+  }
+  if (originalThinkingBudget !== void 0 && originalThinkingBudget > 0) {
+    injectBeginTokenPrompt = true;
+    let modelThinkingBudgetRange = getModelThinkingBudgetRange(url.pathname);
+    if (originalThinkingBudget < modelThinkingBudgetRange[0]) {
+      originalRequestBody.generationConfig.thinkingConfig.thinkingBudget = modelThinkingBudgetRange[0];
+    } else if (originalThinkingBudget > modelThinkingBudgetRange[1]) {
+      originalRequestBody.generationConfig.thinkingConfig.thinkingBudget = modelThinkingBudgetRange[1];
+    }
+  }
+  let originalIncludeThoughts = originalRequestBody.generationConfig?.thinkingConfig?.includeThoughts;
+  let isIncludeThoughts = (originalIncludeThoughts !== void 0 ? originalIncludeThoughts : false) && injectBeginTokenPrompt;
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  let isThoughtFinished = !injectBeginTokenPrompt;
+  const TOKEN_LEN = FINISHED_TOKEN.length;
+  const LOOKAHEAD_SIZE = TOKEN_LEN + 4;
+  
+  const process = /* @__PURE__ */ __name(async () => {
+    let attempts = 0;
+    let currentRequestBody = injectSystemPrompts(originalRequestBody, config, injectBeginTokenPrompt, true);
+    let lineBuffer = "";
+    let textBuffer = "";
+    let linesBuffer = [];
+    let isFirstOutput = true;
+    let lastSendChar = "";
+    
+    while (attempts <= config.maxRetries) {
+      attempts++;
+      let hasGotBeginToken = false;
+      let accumulatedTextThisAttempt = "";
+      let hasFunctionCallInStream = false;
+      let passthroughMode = false;
+      lineBuffer = "";
+      textBuffer = "";
+      linesBuffer = [];
+      const upstreamUrl = `${config.upstreamUrlBase}${url.pathname}${url.search}`;
+      const upstreamRequest = buildUpstreamRequest(upstreamUrl, request, currentRequestBody);
+      try {
+        const upstreamResponse = await wrappedFetch(upstreamRequest);
+        if (upstreamResponse.ok) {
+          const reader = upstreamResponse.body.getReader();
+          let timeoutId;
+          let isFirstData = true;
+          const INITIAL_TIMEOUT_DURATION = 2e4;
+          const SUBSEQUENT_TIMEOUT_DURATION = 4e3;
+          const createTimeoutPromise = /* @__PURE__ */ __name(() => {
+            const timeoutDuration = isFirstData ? INITIAL_TIMEOUT_DURATION : SUBSEQUENT_TIMEOUT_DURATION;
+            return new Promise((resolve) => {
+              timeoutId = setTimeout(() => {
+                resolve({ timeout: true });
+              }, timeoutDuration);
+            });
+          }, "createTimeoutPromise");
+          
+          while (true) {
+            let result = await Promise.race([
+              reader.read(),
+              createTimeoutPromise()
+            ]);
+            if (result.timeout) {
+              result = { value: void 0, done: true };
+            }
+            const { value, done } = result;
+            if (value) {
+              clearTimeout(timeoutId);
+              if (isFirstData) {
+                isFirstData = false;
+              }
+            }
+            if (value) {
+              const chunkString = decoder.decode(value, { stream: true });
+              if (passthroughMode) {
+                writer.write(encoder.encode(chunkString));
+                continue;
+              }
+              const processableString = lineBuffer + chunkString;
+              const lines = processableString.split(/\r?\n\r?\n/);
+              lineBuffer = lines.pop() || "";
+              for (const line of lines) {
+                if (!line.startsWith("data:")) {
+                  if (line) writer.write(encoder.encode(line + "\n\n"));
+                  continue;
+                }
+                const jsonStr = line.substring(5).trim();
+                if (!jsonStr) continue;
+                try {
+                  const data = JSON.parse(jsonStr);
+                  const parts = data?.candidates?.[0]?.content?.parts || [];
+                  const parsedParts = parseParts(parts);
+                  if (parsedParts.hasFunctionCall) {
+                    hasFunctionCallInStream = true;
+                  }
+                  if (parsedParts.hasThought && !parsedParts.responseText && !parsedParts.hasFunctionCall) {
+                    continue;
+                  }
+                  if (hasFunctionCallInStream && !passthroughMode) {
+                    while (linesBuffer.length > 0) {
+                      let lineObj = linesBuffer.shift();
+                      if (lineObj.isTransitionLine) {
+                        let transitionLineJson = JSON.parse(lineObj.rawLine.substring(5).trim());
+                        transitionLineJson.candidates[0].content.parts = [{ text: cleanFinalText(lineObj.text) }];
+                        writer.write(encoder.encode(`data: ${JSON.stringify(transitionLineJson)}\n\n`));
+                        isThoughtFinished = true;
+                      } else {
+                        writer.write(encoder.encode(lineObj.rawLine + "\n\n"));
+                      }
+                    }
+                    textBuffer = "";
+                    writer.write(encoder.encode(line + "\n\n"));
+                    passthroughMode = true;
+                    continue;
+                  } else if (passthroughMode) {
+                    writer.write(encoder.encode(line + "\n\n"));
+                    continue;
+                  }
+                  let responseText = parsedParts.responseText || "";
+                  let isTransitionLine = false;
+                  if (!isThoughtFinished && !hasGotBeginToken && isFormalResponseStarted(responseText)) {
+                    let theCharBeforeBeginToken = linesBuffer[linesBuffer.length - 1]?.text.slice(-1) || lastSendChar;
+                    theCharBeforeBeginToken = responseText.split(BEGIN_TOKEN)[0] === "" ? theCharBeforeBeginToken : responseText.split(BEGIN_TOKEN)[0].slice(-1);
+                    if (theCharBeforeBeginToken != "`") {
+                      hasGotBeginToken = true;
+                      isTransitionLine = true;
+                    }
+                  } else if (!isThoughtFinished && !hasGotBeginToken && linesBuffer.length >= 1 && isFormalResponseStarted(linesBuffer[linesBuffer.length - 1]?.text + responseText)) {
+                    let combinedText = linesBuffer[linesBuffer.length - 1].text + responseText;
+                    let theCharBeforeBeginToken = linesBuffer[linesBuffer.length - 2]?.text.slice(-1) || lastSendChar;
+                    theCharBeforeBeginToken = combinedText.split(BEGIN_TOKEN)[0] === "" ? theCharBeforeBeginToken : combinedText.split(BEGIN_TOKEN)[0].slice(-1);
+                    if (theCharBeforeBeginToken != "`") {
+                      hasGotBeginToken = true;
+                      isTransitionLine = true;
+                      responseText = combinedText;
+                      linesBuffer.pop();
+                    }
+                  } else if (!isThoughtFinished && !hasGotBeginToken && linesBuffer.length >= 2 && isFormalResponseStarted(linesBuffer[linesBuffer.length - 2]?.text + linesBuffer[linesBuffer.length - 1]?.text + responseText)) {
+                    let combinedText = linesBuffer[linesBuffer.length - 2].text + linesBuffer[linesBuffer.length - 1].text + responseText;
+                    let theCharBeforeBeginToken = linesBuffer[linesBuffer.length - 3]?.text.slice(-1) || lastSendChar;
+                    theCharBeforeBeginToken = combinedText.split(BEGIN_TOKEN)[0] === "" ? theCharBeforeBeginToken : combinedText.split(BEGIN_TOKEN)[0].slice(-1);
+                    if (theCharBeforeBeginToken != "`") {
+                      hasGotBeginToken = true;
+                      isTransitionLine = true;
+                      responseText = combinedText;
+                      linesBuffer.pop() && linesBuffer.pop();
+                    }
+                  }
+                  if (isTransitionLine) {
+                    let responseTextSplit = responseText.split(BEGIN_TOKEN);
+                    if (responseTextSplit[0].length > 0) {
+                      let lastThoughtLineJson = { candidates: [{ content: { parts: [{ text: responseTextSplit[0].trim(), thought: true }], role: "model" }, index: 0 }] };
+                      linesBuffer.push({ rawLine: `data: ${JSON.stringify(lastThoughtLineJson)}`, isTransitionLine: false, text: responseTextSplit[0].trim() });
+                    }
+                    responseText = BEGIN_TOKEN + responseTextSplit[1].trim();
+                  }
+                  let lineToStore = line.trim();
+                  let processedParts = [];
+                  try {
+                    if (Array.isArray(parts)) {
+                      processedParts = [{ text: responseText }];
+                      for (const part of parts) {
+                        if (part.functionCall) {
+                          processedParts.push(part);
+                        }
+                      }
+                      if (!isThoughtFinished && !hasGotBeginToken) {
+                        processedParts.forEach((part) => {
+                          if (part.text) {
+                            part.thought = true;
+                          }
+                        });
+                      }
+                      data.candidates[0].content.parts = processedParts;
+                      lineToStore = `data: ${JSON.stringify(data)}`;
+                    }
+                  } catch (e) {
+                  }
+                  linesBuffer.push({ rawLine: lineToStore, isTransitionLine, text: responseText });
+                  textBuffer += responseText;
+                } catch (e) {
+                  writer.write(encoder.encode(line + "\n\n"));
+                }
+              }
+              if (textBuffer.length > LOOKAHEAD_SIZE) {
+                if ((accumulatedTextThisAttempt + textBuffer).split(config.startOfThought).length - 1 >= 2) {
+                  if (currentRequestBody.contents[currentRequestBody.contents.length - 1].role == "model") {
+                    let last_model_parts = currentRequestBody.contents[currentRequestBody.contents.length - 1].parts;
+                    last_model_parts[last_model_parts.length - 1].text = config.startOfThought;
+                  }
+                  break;
+                }
+                if (isIncludeThoughts && isFirstOutput && isFormalResponseStarted(textBuffer)) {
+                  break;
+                }
+                const safeTextLength = textBuffer.length - LOOKAHEAD_SIZE;
+                let forwardedTextLength = 0;
+                while (linesBuffer.length > 0) {
+                  const lineObject = linesBuffer[0];
+                  if (forwardedTextLength + lineObject.text.length <= safeTextLength) {
+                    linesBuffer.shift();
+                    if (isFirstOutput && isIncludeThoughts) {
+                      writer.write(encoder.encode(`data: ${JSON.stringify({ candidates: [{ content: { parts: [{ text: config.startOfThought, thought: true }], role: "model" }, index: 0 }] })}\n\n`));
+                    }
+                    if (lineObject.isTransitionLine) {
+                      const data = JSON.parse(lineObject.rawLine.substring(5).trim());
+                      const cleanedBeginText = cleanFinalText(lineObject.text, true, false);
+                      data.candidates[0].content.parts = [{ text: cleanedBeginText }];
+                      const cleanedLine = `data: ${JSON.stringify(data)}`;
+                      writer.write(encoder.encode(cleanedLine + "\n\n"));
+                      isThoughtFinished = true;
+                    } else {
+                      (isIncludeThoughts || isThoughtFinished) && writer.write(encoder.encode(lineObject.rawLine + "\n\n"));
+                    }
+                    if (isFirstOutput) {
+                      isFirstOutput = false;
+                    }
+                    accumulatedTextThisAttempt += lineObject.text;
+                    forwardedTextLength += lineObject.text.length;
+                    lastSendChar = accumulatedTextThisAttempt.slice(-1);
+                  } else {
+                    break;
+                  }
+                }
+                textBuffer = textBuffer.slice(forwardedTextLength);
+              }
+            }
+            if (done) {
+              if (passthroughMode) {
+                writer.close();
+                return;
+              }
+              if ((hasGotBeginToken || isThoughtFinished) && (isResponseComplete(textBuffer) || isLiteModel)) {
+                let thoughtTextBuffer = "";
+                let responseTextBuffer = "";
+                for (const lineObject of linesBuffer) {
+                  try {
+                    const line = lineObject.rawLine;
+                    if (line.startsWith("data:")) {
+                      const data = JSON.parse(line.substring(5).trim());
+                      const parts = data?.candidates?.[0]?.content?.parts || [];
+                      for (const part of parts) {
+                        if (part.thought && part.text) {
+                          thoughtTextBuffer += part.text;
+                        } else if (!part.thought && part.text) {
+                          responseTextBuffer += part.text;
+                        }
+                      }
+                    }
+                  } catch (e) {
+                  }
+                }
+                let finalPayload = null;
+                for (let i = linesBuffer.length - 1; i >= 0; i--) {
+                  try {
+                    const line = linesBuffer[i].rawLine;
+                    if (line.startsWith("data:")) {
+                      finalPayload = JSON.parse(line.substring(5).trim());
+                      break;
+                    }
+                  } catch (e) {
+                  }
+                }
+                if (!finalPayload) {
+                  finalPayload = {
+                    candidates: [{ content: { parts: [], role: "model" }, finishReason: "STOP", index: 0 }]
+                  };
+                }
+                const finalText = cleanFinalText(responseTextBuffer);
+                const finalParts = [];
+                if (thoughtTextBuffer) {
+                  finalParts.push({ text: thoughtTextBuffer, thought: true });
+                }
+                if (finalText) {
+                  finalParts.push({ text: finalText });
+                }
+                finalPayload.candidates[0].content.parts = finalParts;
+                finalPayload.candidates[0].finishReason = "STOP";
+                writer.write(encoder.encode(`data: ${JSON.stringify(finalPayload)}\n\n`));
+                writer.close();
+                return;
+              } else {
+                currentRequestBody = buildRetryRequest(currentRequestBody, accumulatedTextThisAttempt);
+                break;
+              }
+            }
+          }
+        } else {
+          const errorText = await upstreamResponse.text();
+          if (FATAL_STATUS_CODES.includes(upstreamResponse.status)) {
+            break;
+          }
+          const isRetryableStatus = RETRYABLE_STATUS_CODES.includes(upstreamResponse.status);
+          if (attempts <= config.maxRetries && upstreamResponse.status == 429) {
+            if (errorText.toLowerCase().includes("quota exceeded for quota metric")) {
+              await sleep(1e3);
+            }
+          }
+          const maxRetriesForThisError = isRetryableStatus ? config.maxRetries : MAX_NON_RETRYABLE_STATUS_RETRIES;
+          if (attempts > maxRetriesForThisError) {
+            break;
+          }
+        }
+      } catch (error) {
+        if (attempts > config.maxRetries) {
+          break;
+        }
+      }
+    }
+    if (linesBuffer.length > 0) {
+      for (const lineObj of linesBuffer) {
+        writer.write(encoder.encode(lineObj.rawLine + "\n\n"));
+      }
+    }
+    const incompletePayload = {
+      candidates: [{
+        content: {
+          parts: [{ text: `\n${INCOMPLETE_TOKEN}` }]
+        },
+        finishReason: "FXXKED",
+        index: 0
+      }]
+    };
+    writer.write(encoder.encode(`data: ${JSON.stringify(incompletePayload)}\n\n`));
+    writer.close();
+  }, "process");
+  
+  let heartbeatInterval;
+  heartbeatInterval = setInterval(() => {
+    try {
+      if (writer.desiredSize !== null && writer.desiredSize > 0) {
+        const heartbeatPayload = {
+          candidates: [{
+            content: isFromCherryRequest || isThoughtFinished || !isIncludeThoughts ? { parts: [{ text: "" }], role: "model" } : { parts: [{ text: "", thought: true }], role: "model" },
+            index: 0
+          }]
+        };
+        writer.write(encoder.encode(`data: ${JSON.stringify(heartbeatPayload)}\n\n`));
+      }
+    } catch (e) {
+      clearInterval(heartbeatInterval);
+    }
+  }, 5e3);
+  
+  process().catch((e) => {
+    try {
+      writer.close();
+    } catch (_) {
+    }
+  }).finally(() => {
+    clearInterval(heartbeatInterval);
+  });
+  
+  return new Response(readable, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+      "Access-Control-Allow-Origin": "*"
+    }
+  });
+}
+__name(handleStreamingRequest, "handleStreamingRequest");
+
+// src/index.js
+var index_default = {
+  /**
+   * Main fetch handler for the Worker.
+   */
+  async fetch(request, env, context) {
+    const config = parseConfig(env);
+    try {
+      const url = new URL(request.url);
+      if (request.method === "OPTIONS") {
+        return handleOptionsRequest();
+      }
+      const apiKey = url.searchParams.get("key") || request.headers.get("X-Goog-Api-Key");
+      if (!apiKey) {
+        return jsonError(403, "Forbidden", "Gemini API key not detected");
+      }
+      if (request.method === "POST") {
+        const isStream = url.pathname.includes(":stream") || url.searchParams.get("alt") === "sse";
+        if (isStream) {
+          return await handleStreamingRequest(request, config, url);
+        } else {
+          return await handleNonStreamingRequest(request, config, url);
+        }
+      }
+      const upstreamUrl = `${config.upstreamUrlBase}${url.pathname}${url.search}`;
+      return fetch(upstreamUrl, request);
+    } catch (e) {
+      return jsonError(500, "Internal Server Error", e.message);
+    }
+  }
+};
+export {
+  index_default as default
+};
+//# sourceMappingURL=index.js.map
