@@ -11,6 +11,9 @@ builds:
       - arm64
     main: ./cmd/server/
     binary: cli-proxy-api-plus
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+      - -mod=readonly
     ldflags:
       - -s -w -X 'main.Version={{.Version}}-plus' -X 'main.Commit={{.ShortCommit}}' -X 'main.BuildDate={{.Date}}'
 archives:
